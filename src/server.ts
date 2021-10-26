@@ -5,6 +5,17 @@ const port = 3000;
 
 const users = ['Mickey', 'Minnie', 'Donald', 'Daisy', 'Goofy'];
 
+app.delete('/api/users/:name', (request, response) => {
+  const isNameKnown = users.includes(request.params.name);
+  if (isNameKnown) {
+    const index = users.indexOf(request.params.name);
+    users.splice(index, 1);
+    response.send(users);
+  } else {
+    response.status(404).send('Name is unknown');
+  }
+});
+
 app.get('/api/users/:name', (request, response) => {
   const isNameKnown = users.includes(request.params.name);
   if (isNameKnown) {
