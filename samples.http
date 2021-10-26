@@ -13,3 +13,12 @@ GET http://localhost:3000/api/users/sggsa HTTP/1.1
 ### DELETE a user
 
 DELETE http://localhost:3000/api/users/Goofy HTTP/1.1
+
+###POST a user
+
+POST http://localhost:3000/api/users HTTP/1.1
+Content-Type: application/json
+
+{
+    "name": "Pluto"
+}
