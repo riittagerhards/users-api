@@ -80,6 +80,20 @@ app.post('/api/users', (request, response) => {
   }
 });
 
+app.post('/api/login', (request, response) => {
+  const logInUser = request.body;
+  const user = users.find(
+    (user) =>
+      user.username === logInUser.username &&
+      user.password === logInUser.password
+  );
+  if (user) {
+    response.status(202).send('User found');
+  } else {
+    response.status(404).send('Name is unknown');
+  }
+});
+
 app.get('/', (_req, res) => {
   res.send('Hello World!');
 });
