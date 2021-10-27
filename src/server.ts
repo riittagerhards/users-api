@@ -9,10 +9,13 @@ app.use(express.json());
 const users = ['Mickey', 'Minnie', 'Donald', 'Daisy', 'Goofy'];
 
 app.post('/api/users', (request, response) => {
-  response.send(request.body.name);
+  const newUser = request.body;
+  users.push(newUser.name);
+  response.send(`${newUser.name} added`);
 });
 
-/*app.delete('/api/users/:name', (request, response) => {
+/* an alternative function
+app.delete('/api/users/:name', (request, response) => {
   const isNameKnown = users.includes(request.params.name);
   if (isNameKnown) {
     const index = users.indexOf(request.params.name);
