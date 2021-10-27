@@ -9,9 +9,14 @@ app.use(express.json());
 const users = ['Mickey', 'Minnie', 'Donald', 'Daisy', 'Goofy'];
 
 app.post('/api/users', (request, response) => {
+  const doesUserExist = users.includes(request.body.name);
   const newUser = request.body;
-  users.push(newUser.name);
-  response.send(`${newUser.name} added`);
+  if (doesUserExist) {
+    response.status(409).send('You cannot add the same user twice');
+  } else {
+    users.push(newUser.name);
+    response.send(`${newUser.name} added`);
+  }
 });
 
 /* an alternative function
@@ -32,7 +37,6 @@ app.delete('/api/users/:name', (request, response) => {
     response.status(404).send("User doesn't exist. Check another Castle 🏰");
     return;
   }
-
   users.splice(usersIndex, 1);
   response.send('Deleted');
 });
