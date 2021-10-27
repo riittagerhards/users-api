@@ -1,4 +1,5 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const port = 3000;
@@ -6,52 +7,106 @@ const port = 3000;
 //for parcing application/json
 app.use(express.json());
 
-const users = ['Mickey', 'Minnie', 'Donald', 'Daisy', 'Goofy'];
+//Middleware for parsing cookies
+app.use(cookieParser());
+
+const users = [
+  {
+    name: 'Mickey',
+    username: 'mickeym',
+    password: 'mouse',
+  },
+  {
+    name: 'Minnie',
+    username: 'minniem',
+    password: 'ladymouse',
+  },
+  {
+    name: 'Donald',
+    username: 'donaldd',
+    password: 'duck',
+  },
+  {
+    name: 'Daisy',
+    username: 'daisyd',
+    password: 'ladyduck',
+  },
+  {
+    name: 'Goofy',
+    username: 'goofy9000',
+    password: '123abc',
+  },
+];
+
+app.get('/api/users', (_request, response) => {
+  response.send(users);
+});
+
+app.get('/api/users/:username', (request, response) => {
+  const user = users.find((user) => user.username === request.params.username);
+  if (user) {
+    response.send(user);
+  } else {
+    response.status(404).send('Name is unknown');
+  }
+});
+
+app.delete('/api/users/:username', (request, response) => {
+  const isNameKnown = users.some(
+    (user) => user.username === request.params.username
+  );
+  if (isNameKnown) {
+    const deleteUser = users.findIndex(
+      (user) => user.username === request.params.username
+    );
+    users.splice(deleteUser, 1);
+    response.send('User deleted');
+  } else {
+    response.status(404).send('Name is unknown');
+  }
+});
 
 app.post('/api/users', (request, response) => {
-  const doesUserExist = users.includes(request.body.name);
   const newUser = request.body;
-  if (doesUserExist) {
-    response.status(409).send('You cannot add the same user twice');
+  if (
+    typeof newUser.name !== 'string' ||
+    typeof newUser.username !== 'string' ||
+    typeof newUser.password !== 'string'
+  ) {
+    response.status(400).send('Missing properties');
+    return;
+  }
+  if (users.some((user) => user.username === newUser.username)) {
+    response.status(409).send('You cannot add a user twice');
   } else {
-    users.push(newUser.name);
+    users.push(newUser);
     response.send(`${newUser.name} added`);
   }
 });
 
-/* an alternative function
-app.delete('/api/users/:name', (request, response) => {
-  const isNameKnown = users.includes(request.params.name);
-  if (isNameKnown) {
-    const index = users.indexOf(request.params.name);
-    users.splice(index, 1);
-    response.send(users);
+app.post('/api/login', (request, response) => {
+  const logInUser = request.body;
+  const user = users.find(
+    (user) =>
+      user.username === logInUser.username &&
+      user.password === logInUser.password
+  );
+  if (user) {
+    response.setHeader('Set-Cookie', `username=${user.username}`);
+    response.status(202).send('Login successful');
   } else {
-    response.status(404).send('Name is unknown');
-  }
-});*/
-
-app.delete('/api/users/:name', (request, response) => {
-  const usersIndex = users.indexOf(request.params.name);
-  if (usersIndex === -1) {
-    response.status(404).send("User doesn't exist. Check another Castle 🏰");
-    return;
-  }
-  users.splice(usersIndex, 1);
-  response.send('Deleted');
-});
-
-app.get('/api/users/:name', (request, response) => {
-  const isNameKnown = users.includes(request.params.name);
-  if (isNameKnown) {
-    response.send(request.params.name);
-  } else {
-    response.status(404).send('Name is unknown');
+    response.status(404).send('User unknown');
   }
 });
 
-app.get('/api/users', (_request, response) => {
-  response.send(users);
+app.get('/api/me', (request, response) => {
+  const username = request.cookies.username;
+  const foundUser = users.find((user) => user.username === username);
+  if (foundUser) {
+    response.send(foundUser);
+  } else {
+    response.status(404).send('User not found');
+  }
 });
 
 app.get('/', (_req, res) => {
