@@ -1,10 +1,14 @@
 import express from 'express';
+import cookieParser from 'cookie-parser';
 
 const app = express();
 const port = 3000;
 
 //for parcing application/json
 app.use(express.json());
+
+//Middleware for parsing cookies
+app.use(cookieParser());
 
 const users = [
   {
@@ -73,7 +77,7 @@ app.post('/api/users', (request, response) => {
     return;
   }
   if (users.some((user) => user.username === newUser.username)) {
-    response.status(409).send('You cannot add the same user twice');
+    response.status(409).send('You cannot add a user twice');
   } else {
     users.push(newUser);
     response.send(`${newUser.name} added`);
@@ -88,9 +92,20 @@ app.post('/api/login', (request, response) => {
       user.password === logInUser.password
   );
   if (user) {
-    response.status(202).send('User found');
+    response.setHeader('Set-Cookie', `username=${user.username}`);
+    response.status(202).send('Login successful');
   } else {
-    response.status(404).send('Name is unknown');
+    response.status(404).send('User unknown');
+  }
+});
+
+app.get('/api/me', (request, response) => {
+  const username = request.cookies.username;
+  const foundUser = users.find((user) => user.username === username);
+  if (foundUser) {
+    response.send(foundUser);
+  } else {
+    response.status(404).send('User not found');
   }
 });
 
