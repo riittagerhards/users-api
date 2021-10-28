@@ -4,6 +4,7 @@ dotenv.config();
 import express from 'express';
 import cookieParser from 'cookie-parser';
 import { connectDatabase } from './utils/database';
+import { getUserCollection } from './utils/database';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('No MongoDB URI dotenv variable');
@@ -19,31 +20,11 @@ app.use(express.json());
 app.use(cookieParser());
 
 const users = [
-  {
-    name: 'Mickey',
-    username: 'mickeym',
-    password: 'mouse',
-  },
-  {
-    name: 'Minnie',
-    username: 'minniem',
-    password: 'ladymouse',
-  },
-  {
-    name: 'Donald',
-    username: 'donaldd',
-    password: 'duck',
-  },
-  {
-    name: 'Daisy',
-    username: 'daisyd',
-    password: 'ladyduck',
-  },
-  {
-    name: 'Goofy',
-    username: 'goofy9000',
-    password: '123abc',
-  },
+  { name: 'Mickey', username: 'mickeym', password: 'mouse' },
+  { name: 'Minnie', username: 'minniem', password: 'ladymouse' },
+  { name: 'Donald', username: 'donaldd', password: 'duck' },
+  { name: 'Daisy', username: 'daisyd', password: 'ladyduck' },
+  { name: 'Goofy', username: 'goofy9000', password: '123abc' },
 ];
 
 app.get('/api/users', (_request, response) => {
@@ -74,7 +55,7 @@ app.delete('/api/users/:username', (request, response) => {
   }
 });
 
-app.post('/api/users', (request, response) => {
+app.post('/api/users', async (request, response) => {
   const newUser = request.body;
   if (
     typeof newUser.name !== 'string' ||
@@ -84,11 +65,15 @@ app.post('/api/users', (request, response) => {
     response.status(400).send('Missing properties');
     return;
   }
-  if (users.some((user) => user.username === newUser.username)) {
-    response.status(409).send('You cannot add a user twice');
+  const userCollection = getUserCollection();
+  const existingUser = await userCollection.findOne({
+    username: newUser.username,
+  });
+  if (!existingUser) {
+    const insertedUser = await userCollection.insertOne(newUser);
+    response.send(`${newUser.name} added, with ID: ${insertedUser.insertedId}`);
   } else {
-    users.push(newUser);
-    response.send(`${newUser.name} added`);
+    response.status(409).send('You cannot add a user twice');
   }
 });
 
