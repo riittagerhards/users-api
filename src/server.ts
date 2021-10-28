@@ -3,8 +3,7 @@ dotenv.config();
 
 import express from 'express';
 import cookieParser from 'cookie-parser';
-import { connectDatabase } from './utils/database';
-import { getUserCollection } from './utils/database';
+import { connectDatabase, getUserCollection } from './utils/database';
 
 if (!process.env.MONGODB_URI) {
   throw new Error('No MongoDB URI dotenv variable');
@@ -27,16 +26,23 @@ const users = [
   { name: 'Goofy', username: 'goofy9000', password: '123abc' },
 ];
 
-app.get('/api/users', (_request, response) => {
-  response.send(users);
+app.get('/api/users', async (_request, response) => {
+  const userCollection = getUserCollection();
+  const cursor = userCollection.find();
+  const allUsers = await cursor.toArray();
+  response.status(200).send(allUsers);
 });
 
-app.get('/api/users/:username', (request, response) => {
-  const user = users.find((user) => user.username === request.params.username);
-  if (user) {
-    response.send(user);
-  } else {
+app.get('/api/users/:username', async (request, response) => {
+  const userCollection = getUserCollection();
+  const user = request.params.username;
+  const userRequest = await userCollection.findOne({
+    username: user,
+  });
+  if (!userRequest) {
     response.status(404).send('Name is unknown');
+  } else {
+    response.send(userRequest);
   }
 });
 
@@ -70,8 +76,9 @@ app.post('/api/users', async (request, response) => {
     username: newUser.username,
   });
   if (!existingUser) {
-    const insertedUser = await userCollection.insertOne(newUser);
-    response.send(`${newUser.name} added, with ID: ${insertedUser.insertedId}`);
+    const userDocument = await userCollection.insertOne(newUser);
+    const responseDocument = { ...newUser, ...userDocument.insertedId };
+    response.status(200).send(responseDocument);
   } else {
     response.status(409).send('You cannot add a user twice');
   }
