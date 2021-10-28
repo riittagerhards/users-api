@@ -46,16 +46,15 @@ app.get('/api/users/:username', async (request, response) => {
   }
 });
 
-app.delete('/api/users/:username', (request, response) => {
-  const isNameKnown = users.some(
-    (user) => user.username === request.params.username
-  );
-  if (isNameKnown) {
-    const deleteUser = users.findIndex(
-      (user) => user.username === request.params.username
-    );
-    users.splice(deleteUser, 1);
-    response.send('User deleted');
+app.delete('/api/users/:username', async (request, response) => {
+  const userCollection = getUserCollection();
+  const user = request.params.username;
+  const findName = await userCollection.findOne({
+    username: user,
+  });
+  if (findName) {
+    await userCollection.deleteOne({ username: user });
+    response.send(`User ${user}  deleted`);
   } else {
     response.status(404).send('Name is unknown');
   }
