@@ -1,5 +1,13 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cookieParser from 'cookie-parser';
+import { connectDatabase, getUserCollection } from './utils/database';
+
+if (!process.env.MONGODB_URI) {
+  throw new Error('No MongoDB URI dotenv variable');
+}
 
 const app = express();
 const port = 3000;
@@ -11,62 +19,48 @@ app.use(express.json());
 app.use(cookieParser());
 
 const users = [
-  {
-    name: 'Mickey',
-    username: 'mickeym',
-    password: 'mouse',
-  },
-  {
-    name: 'Minnie',
-    username: 'minniem',
-    password: 'ladymouse',
-  },
-  {
-    name: 'Donald',
-    username: 'donaldd',
-    password: 'duck',
-  },
-  {
-    name: 'Daisy',
-    username: 'daisyd',
-    password: 'ladyduck',
-  },
-  {
-    name: 'Goofy',
-    username: 'goofy9000',
-    password: '123abc',
-  },
+  { name: 'Mickey', username: 'mickeym', password: 'mouse' },
+  { name: 'Minnie', username: 'minniem', password: 'ladymouse' },
+  { name: 'Donald', username: 'donaldd', password: 'duck' },
+  { name: 'Daisy', username: 'daisyd', password: 'ladyduck' },
+  { name: 'Goofy', username: 'goofy9000', password: '123abc' },
 ];
 
-app.get('/api/users', (_request, response) => {
-  response.send(users);
+app.get('/api/users', async (_request, response) => {
+  const userCollection = getUserCollection();
+  const cursor = userCollection.find();
+  const allUsers = await cursor.toArray();
+  response.status(200).send(allUsers);
 });
 
-app.get('/api/users/:username', (request, response) => {
-  const user = users.find((user) => user.username === request.params.username);
-  if (user) {
-    response.send(user);
+app.get('/api/users/:username', async (request, response) => {
+  const userCollection = getUserCollection();
+  const user = request.params.username;
+  const userRequest = await userCollection.findOne({
+    username: user,
+  });
+  if (!userRequest) {
+    response.status(404).send('Name is unknown');
+  } else {
+    response.send(userRequest);
+  }
+});
+
+app.delete('/api/users/:username', async (request, response) => {
+  const userCollection = getUserCollection();
+  const user = request.params.username;
+  const findName = await userCollection.findOne({
+    username: user,
+  });
+  if (findName) {
+    await userCollection.deleteOne({ username: user });
+    response.send(`User ${user}  deleted`);
   } else {
     response.status(404).send('Name is unknown');
   }
 });
 
-app.delete('/api/users/:username', (request, response) => {
-  const isNameKnown = users.some(
-    (user) => user.username === request.params.username
-  );
-  if (isNameKnown) {
-    const deleteUser = users.findIndex(
-      (user) => user.username === request.params.username
-    );
-    users.splice(deleteUser, 1);
-    response.send('User deleted');
-  } else {
-    response.status(404).send('Name is unknown');
-  }
-});
-
-app.post('/api/users', (request, response) => {
+app.post('/api/users', async (request, response) => {
   const newUser = request.body;
   if (
     typeof newUser.name !== 'string' ||
@@ -76,11 +70,16 @@ app.post('/api/users', (request, response) => {
     response.status(400).send('Missing properties');
     return;
   }
-  if (users.some((user) => user.username === newUser.username)) {
-    response.status(409).send('You cannot add a user twice');
+  const userCollection = getUserCollection();
+  const existingUser = await userCollection.findOne({
+    username: newUser.username,
+  });
+  if (!existingUser) {
+    const userDocument = await userCollection.insertOne(newUser);
+    const responseDocument = { ...newUser, ...userDocument.insertedId };
+    response.status(200).send(responseDocument);
   } else {
-    users.push(newUser);
-    response.send(`${newUser.name} added`);
+    response.status(409).send('You cannot add a user twice');
   }
 });
 
@@ -113,6 +112,8 @@ app.get('/', (_req, res) => {
   res.send('Hello World!');
 });
 
-app.listen(port, () => {
-  console.log(`Example app listening at http://localhost:${port}`);
-});
+connectDatabase(process.env.MONGODB_URI).then(() =>
+  app.listen(port, () => {
+    console.log(`Example app listening at http://localhost:${port}`);
+  })
+);
